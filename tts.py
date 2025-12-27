@@ -2,16 +2,17 @@ import pyaudio
 import queue
 from openai import OpenAI
 from config import config
+from logger import logger
 
 
 def process_tts(tts_queue, interrupt_event):
     """
-    接收文本片段，合成音频并播放。
-    这是打断机制最直观体现的地方：必须立即停止播放。
+    Receive text fragments, synthesize audio and play.
+    This is where the interrupt mechanism is most intuitively reflected: must stop playback immediately.
     """
-    print("[TTS] 进程启动...")
+    logger.info("[TTS] Process starting...")
 
-    # 从配置获取TTS参数
+    # Get TTS parameters from configuration
     tts_config = config.tts
     api_key = tts_config["api_key"]
     base_url = tts_config["base_url"]
@@ -19,7 +20,7 @@ def process_tts(tts_queue, interrupt_event):
     voice = tts_config["voice"]
     sample_rate = tts_config["sample_rate"]
 
-    # 初始化pyaudio
+    # Initialize pyaudio
     pa = pyaudio.PyAudio()
     stream = pa.open(
         format=pyaudio.paInt16,
@@ -35,15 +36,15 @@ def process_tts(tts_queue, interrupt_event):
 
     while True:
         assistant_answer_text = tts_queue.get()
-        print(f"[TTS] 正在播放: {assistant_answer_text}")
+        logger.info(f"[TTS] Playing: {assistant_answer_text}")
 
         with client.audio.speech.with_streaming_response.create(
             model=model,
             voice=voice,
             extra_body={"sample_rate": sample_rate},
-            # 用户输入信息
+            # User input information
             input=assistant_answer_text,
-            response_format="pcm",  # 支持 mp3, wav, pcm, opus 格式
+            response_format="pcm",  # Supports mp3, wav, pcm, opus formats
         ) as response:
             for chunk in response.iter_bytes(chunk_size=4096):
                 if interrupt_event.is_set():
@@ -52,6 +53,6 @@ def process_tts(tts_queue, interrupt_event):
                             tts_queue.get_nowait()
                         except queue.Empty:
                             break
-                    break  # 停止当前播放
+                    break  # Stop current playback
                 if chunk:
                     stream.write(chunk)

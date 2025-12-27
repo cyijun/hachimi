@@ -1,14 +1,15 @@
 import requests
 from config import config
+from logger import logger
 
 
 def process_stt(audio_queue, text_queue, interrupt_event):
     """
-    从 audio_queue 获取音频，转换为文本放入 text_queue。
+    Get audio from audio_queue, convert to text and put into text_queue.
     """
-    print("[STT] 进程启动...")
+    logger.info("[STT] Process starting...")
 
-    # 从配置获取STT参数
+    # Get STT parameters from configuration
     stt_config = config.stt
     url = stt_config["url"]
     model = stt_config["model"]
@@ -17,7 +18,7 @@ def process_stt(audio_queue, text_queue, interrupt_event):
     headers = {"Authorization": f"Bearer {api_key}"}
 
     while True:
-        # 获取音频，超时为了定期检查 interrupt
+        # Get audio, timeout to periodically check interrupt
         command_mp3_data = audio_queue.get()
 
         files = {"file": ("example.mp3", command_mp3_data)}
@@ -26,6 +27,6 @@ def process_stt(audio_queue, text_queue, interrupt_event):
         response = requests.post(url, data=payload, files=files, headers=headers)
 
         command_txt = response.json().get("text")
-        print(f"[STT] 转录结果: {response.json()}")
+        logger.info(f"[STT] Transcription result: {response.json()}")
         if command_txt:
             text_queue.put(command_txt)

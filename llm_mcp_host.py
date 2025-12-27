@@ -12,9 +12,10 @@ from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
 
 from config import config
+from logger import logger
 
 
-# --- 工具转换逻辑 ---
+# --- Tool conversion logic ---
 def mcp_tools_to_openai_tools(mcp_list_tools_result) -> List[ChatCompletionToolParam]:
     openai_tools: List[ChatCompletionToolParam] = []
     for tool in mcp_list_tools_result.tools:
@@ -31,7 +32,7 @@ def mcp_tools_to_openai_tools(mcp_list_tools_result) -> List[ChatCompletionToolP
     return openai_tools
 
 
-# --- 传输层工厂 ---
+# --- Transport layer factory ---
 @asynccontextmanager
 async def mcp_transport_factory(config_dict: Dict[str, Any]):
     server_type = config_dict.get("type", "stdio")
@@ -57,14 +58,14 @@ class MCPVoiceAgent:
         self.mcp_config = config.mcp_server
         self.llm_config = config.llm
 
-        # 1. 配置系统提示词 (System Prompt)
+        # 1. Configure system prompt (System Prompt)
         self.system_prompt = config.system_prompt
 
         self.openai_client = AsyncOpenAI(
             api_key=self.llm_config["api_key"], base_url=self.llm_config.get("base_url")
         )
 
-        # 初始化消息历史
+        # Initialize message history
         self.messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.system_prompt}
         ]
@@ -73,12 +74,12 @@ class MCPVoiceAgent:
         self.openai_tools: List[ChatCompletionToolParam] = []
         self._exit_stack = AsyncExitStack()
 
-    # --- 上下文管理器：负责连接的建立与保持 ---
+    # --- Context manager: responsible for establishing and maintaining connections ---
     async def __aenter__(self):
-        """初始化 MCP 连接和 Session"""
-        print(f"🔌 Connecting to MCP Server...")
+        """Initialize MCP connection and Session"""
+        logger.info(f"🔌 Connecting to MCP Server...")
 
-        # 使用 ExitStack 管理嵌套的上下文
+        # Use ExitStack to manage nested contexts
         read, write = await self._exit_stack.enter_async_context(
             mcp_transport_factory(self.mcp_config)
         )
@@ -89,39 +90,39 @@ class MCPVoiceAgent:
 
         await self.session.initialize()
 
-        # 加载工具
+        # Load tools
         tools_result = await self.session.list_tools()
         self.openai_tools = mcp_tools_to_openai_tools(tools_result)
-        print(f"🛠️  MCP Agent Ready. Loaded {len(self.openai_tools)} tools.")
+        logger.info(f"🛠️  MCP Agent Ready. Loaded {len(self.openai_tools)} tools.")
 
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """清理资源，断开连接"""
-        print("🔌 Disconnecting MCP Agent...")
+        """Clean up resources, disconnect"""
+        logger.info("🔌 Disconnecting MCP Agent...")
         await self._exit_stack.aclose()
 
-    # --- 核心功能：输入文本 -> 执行操作 -> 输出回复文本 ---
+    # --- Core functionality: input text -> execute actions -> output response text ---
     async def chat(self, user_text: str) -> str:
         """
-        对应流程图中的 E -> F -> G 的输入输出接口
-        Input: STT 转换后的文本
-        Output: 发送给 TTS 的文本
+        Corresponds to the input/output interface E -> F -> G in the flowchart
+        Input: STT converted text
+        Output: Text sent to TTS
         """
         if not user_text or not user_text.strip():
             return ""
 
-        print(f"\n👂 Hearing: {user_text}")
+        logger.info(f"👂 Hearing: {user_text}")
         self.messages.append({"role": "user", "content": user_text})
 
-        # 进入 LLM 处理循环（处理可能的多次工具调用）
+        # Enter LLM processing loop (handling possible multiple tool calls)
         final_response_text = await self._process_llm_turn()
 
-        print(f"🗣️  Speaking: {final_response_text}")
+        logger.info(f"🗣️  Speaking: {final_response_text}")
         return final_response_text
 
     async def _process_llm_turn(self) -> str:
-        """处理单轮对话及多步工具调用，返回最终给用户的文本"""
+        """Process single conversation turn and multi-step tool calls, return final text for user"""
         while True:
             response = await self.openai_client.chat.completions.create(
                 model=self.llm_config["model"],
@@ -133,9 +134,9 @@ class MCPVoiceAgent:
             response_message = response.choices[0].message
             self.messages.append(response_message)
 
-            # 情况 A: LLM 决定调用工具
+            # Case A: LLM decides to call tools
             if response_message.tool_calls:
-                print(
+                logger.info(
                     f"🤖 Action required: {[t.function.name for t in response_message.tool_calls]}"
                 )
 
@@ -144,12 +145,12 @@ class MCPVoiceAgent:
                     fn_args = json.loads(tool_call.function.arguments)
 
                     try:
-                        # 执行 MCP 工具
+                        # Execute MCP tool
                         result = await self.session.call_tool(
                             fn_name, arguments=fn_args
                         )
 
-                        # 将工具结果转为字符串供 LLM 理解
+                        # Convert tool result to string for LLM understanding
                         content_str = ""
                         if result.content:
                             for item in result.content:
@@ -162,7 +163,7 @@ class MCPVoiceAgent:
                     except Exception as e:
                         content_str = f"Error executing tool: {str(e)}"
 
-                    # 将工具结果回传给 LLM
+                    # Pass tool result back to LLM
                     self.messages.append(
                         {
                             "role": "tool",
@@ -170,36 +171,36 @@ class MCPVoiceAgent:
                             "content": content_str,
                         }
                     )
-                # 循环继续，LLM 将看到工具结果并生成新的回复
+                # Loop continues, LLM will see tool results and generate new response
 
-            # 情况 B: LLM 生成了最终文本回复
+            # Case B: LLM generated final text response
             else:
                 return response_message.content
 
 
 def process_llm_host(text_queue, tts_queue, interrupt_event):
     """
-    作为 MCP Host，接收文本，管理上下文，调用工具，并将生成的文本流式传输给 TTS。
+    As MCP Host, receive text, manage context, call tools, and stream generated text to TTS.
     """
-    print("[LLM] 进程启动...")
+    logger.info("[LLM] Process starting...")
 
     async def voice_assistant_loop(text_queue, tts_queue, interrupt_event):
-        # 使用 config 模块获取配置
-        # 使用 context manager 保持 MCP 连接
+        # Use config module to get configuration
+        # Use context manager to maintain MCP connection
         async with MCPVoiceAgent() as agent:
             while True:
-                # 1. (流程 D->E) 从 STT 获取文本
+                # 1. (Process D->E) Get text from STT
                 stt_text = text_queue.get()
 
-                # 2. (流程 E->F) 调用 MCP Agent
+                # 2. (Process E->F) Call MCP Agent
                 tts_text = await agent.chat(stt_text)
 
-                # 3. (流程 F->G) 发送给 TTS
+                # 3. (Process F->G) Send to TTS
                 tts_queue.put(tts_text)
 
-                print("-" * 50)
+                logger.info("-" * 50)
 
     try:
         asyncio.run(voice_assistant_loop(text_queue, tts_queue, interrupt_event))
     except Exception as e:
-        print(f"运行出错: {e}")
+        logger.error(f"Runtime error: {e}")

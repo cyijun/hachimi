@@ -4,30 +4,32 @@ import yaml
 from typing import Any, Dict, Optional
 from pathlib import Path
 
+from logger import logger
+
 class Config:
     def __init__(self, config_path: Optional[str] = None):
         self.config_path = config_path or "config.yaml"
         self._config = self._load_config()
         
     def _load_config(self) -> Dict[str, Any]:
-        """加载YAML配置文件并解析环境变量"""
+        """Load YAML configuration file and parse environment variables"""
         if not Path(self.config_path).exists():
-            raise FileNotFoundError(f"配置文件不存在: {self.config_path}")
+            raise FileNotFoundError(f"Configuration file does not exist: {self.config_path}")
             
         with open(self.config_path, 'r', encoding='utf-8') as f:
             raw_config = yaml.safe_load(f)
             
-        # 递归解析环境变量
+        # Recursively parse environment variables
         return self._resolve_env_vars(raw_config)
     
     def _resolve_env_vars(self, config: Any) -> Any:
-        """递归解析配置中的环境变量占位符"""
+        """Recursively parse environment variable placeholders in configuration"""
         if isinstance(config, dict):
             return {k: self._resolve_env_vars(v) for k, v in config.items()}
         elif isinstance(config, list):
             return [self._resolve_env_vars(item) for item in config]
         elif isinstance(config, str) and config.startswith("${") and config.endswith("}"):
-            # 解析环境变量占位符: ${VAR_NAME:default_value}
+            # Parse environment variable placeholder: ${VAR_NAME:default_value}
             var_part = config[2:-1]
             if ":" in var_part:
                 var_name, default_value = var_part.split(":", 1)
@@ -40,14 +42,14 @@ class Config:
             elif default_value is not None:
                 return default_value
             else:
-                # 环境变量未设置且无默认值，返回空字符串并警告
-                print(f"警告: 环境变量 {var_name} 未设置且无默认值，使用空字符串")
+                # Environment variable not set and no default value, return empty string with warning
+                logger.warning(f"Warning: Environment variable {var_name} not set and no default value, using empty string")
                 return ""
         else:
             return config
     
     def get(self, key: str, default: Any = None) -> Any:
-        """获取配置值，支持点分隔符路径"""
+        """Get configuration value, supports dot-separated paths"""
         keys = key.split('.')
         value = self._config
         for k in keys:
@@ -85,5 +87,5 @@ class Config:
     def process(self) -> Dict[str, Any]:
         return self.get('process', {})
 
-# 全局配置实例
+# Global configuration instance
 config = Config()

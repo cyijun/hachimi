@@ -6,16 +6,17 @@ from stt import process_stt
 from voice_listener import process_kws_vad
 from llm_mcp_host import process_llm_host
 from config import config
+from logger import logger
 
 if __name__ == "__main__":
-    # 1. 设置通信管道
-    # 上下文：Spawn 是最安全的启动方式 (兼容 Windows/Mac/Linux)
+    # 1. Set up communication pipes
+    # Context: Spawn is the safest startup method (compatible with Windows/Mac/Linux)
     multiprocessing.set_start_method("spawn", force=True)
 
-    # 从配置获取队列大小（如果配置中有）
-    queue_size = config.process.get("queue_size", 0)  # 0表示无限大小
+    # Get queue size from configuration (if configured)
+    queue_size = config.process.get("queue_size", 0)  # 0 means unlimited size
 
-    # 创建队列，如果配置了大小则使用配置的大小
+    # Create queues, use configured size if specified
     if queue_size > 0:
         audio_queue = multiprocessing.Queue(maxsize=queue_size)  # KWS -> STT
         text_queue = multiprocessing.Queue(maxsize=queue_size)  # STT -> LLM
@@ -25,12 +26,12 @@ if __name__ == "__main__":
         text_queue = multiprocessing.Queue()  # STT -> LLM
         tts_queue = multiprocessing.Queue()  # LLM -> TTS
 
-    # 全局控制信号
+    # Global control signals
     interrupt_event = multiprocessing.Event()
     mic_running_event = multiprocessing.Event()
     mic_running_event.set()
 
-    # 2. 初始化进程
+    # 2. Initialize processes
     p_kws = multiprocessing.Process(
         target=process_kws_vad,
         args=(audio_queue, interrupt_event, mic_running_event),
@@ -53,21 +54,21 @@ if __name__ == "__main__":
         target=process_tts, args=(tts_queue, interrupt_event), name="TTS_Process"
     )
 
-    # 3. 启动所有进程
+    # 3. Start all processes
     processes = [p_kws, p_stt, p_llm, p_tts]
     for p in processes:
         p.start()
 
-    print("=== 语音助手框架已运行（使用配置版本）。按 Ctrl+C 退出 ===")
-    print(f"配置队列大小: {queue_size if queue_size > 0 else '无限'}")
+    logger.info("=== Voice assistant framework running (configuration version). Press Ctrl+C to exit ===")
+    logger.info(f"Configured queue size: {queue_size if queue_size > 0 else 'unlimited'}")
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n正在停止系统...")
+        logger.info("Stopping system...")
         mic_running_event.clear()
         for p in processes:
             p.terminate()
             p.join()
-        print("系统已退出。")
+        logger.info("System exited.")
