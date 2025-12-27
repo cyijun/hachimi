@@ -1,0 +1,9 @@
+requests
+pyyaml
+numpy
+pyaudio
+webrtcvad-wheels
+openwakeword
+pydub
+openai
+mcp

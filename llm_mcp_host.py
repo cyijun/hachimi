@@ -77,7 +77,7 @@ class MCPVoiceAgent:
     # --- Context manager: responsible for establishing and maintaining connections ---
     async def __aenter__(self):
         """Initialize MCP connection and Session"""
-        logger.info(f"🔌 Connecting to MCP Server...")
+        logger.info("🔌 Connecting to MCP Server...")
 
         # Use ExitStack to manage nested contexts
         read, write = await self._exit_stack.enter_async_context(
