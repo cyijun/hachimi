@@ -1,0 +1,96 @@
+# 增强版MCP语音代理配置示例
+# 支持多服务器、向量搜索、上下文管理等功能
+
+# MCP服务器配置（支持多个服务器）
+mcp_servers:
+  # 服务器1：SSE类型
+  smart_home:
+    type: "sse"
+    url: "http://mininas:8123/mcp_server/sse"
+    headers:
+      Authorization: "${MCP_AUTH_TOKEN}"
+  
+  # 服务器2：stdio类型
+  weather_server:
+    type: "stdio"
+    command: "python"
+    args: ["-m", "weather_mcp"]
+    env:
+      WEATHER_API_KEY: "${WEATHER_API_KEY}"
+  
+  # 服务器3：另一个SSE服务器
+  knowledge_base:
+    type: "sse"
+    url: "http://kb-server:8080/mcp"
+    headers:
+      Authorization: "${KB_AUTH_TOKEN}"
+
+# LLM配置
+llm:
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+  temperature: 0.7
+
+# 系统提示
+system_prompt: |
+  你是一个智能家居语音助手，可以控制家居设备、查询天气、回答知识问题等。
+  你的回答必须简洁、口语化，适合语音播报。
+  你可以使用以下MCP服务器提供的工具：
+  - smart_home: 控制智能家居设备
+  - weather_server: 查询天气信息
+  - knowledge_base: 查询知识库信息
+
+# 工具选择配置
+tool_selection:
+  top_k: 3  # 每次选择最相关的3个工具
+  use_vector_search: true  # 启用向量搜索（mock）
+
+# 上下文管理配置
+context:
+  max_turns: 3  # 最大保存3个回合（用户+助手为一回合）
+  max_time_minutes: 30  # 上下文过期时间30分钟
+
+# STT配置
+stt:
+  url: "https://api.siliconflow.cn/v1/audio/transcriptions"
+  model: "FunAudioLLM/SenseVoiceSmall"
+  api_key: "${SILICONFLOW_API_KEY}"
+
+# TTS配置
+tts:
+  api_key: "${SILICONFLOW_API_KEY}"
+  base_url: "https://api.siliconflow.cn/v1"
+  model: "FunAudioLLM/CosyVoice2-0.5B"
+  voice: "FunAudioLLM/CosyVoice2-0.5B:diana"
+  sample_rate: 44100
+
+# 语音监听配置
+voice_listener:
+  wake_word_model_path: "${WAKE_WORD_MODEL_PATH:hey jarvis}"
+  channels: 1
+  rate: 16000
+  chunk: 1280
+  vad_frame_ms: 30
+  wake_word_threshold: 0.5
+  silence_limit_seconds: 1.5
+  min_record_seconds: 0.5
+
+# 进程配置
+process:
+  queue_size: 100
+
+# 高级配置（可选）
+advanced:
+  # 工具调用重试配置
+  tool_retry:
+    max_attempts: 3
+    delay_seconds: 1
+  
+  # 性能监控
+  monitoring:
+    enable: true
+    stats_interval_turns: 5  # 每5轮输出一次统计信息
+  
+  # 日志级别
+  log_level: "INFO"

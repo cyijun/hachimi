@@ -209,3 +209,5 @@ __marimo__/
 # IDE
 .idea/
 .vscode/
+
+config.yaml
