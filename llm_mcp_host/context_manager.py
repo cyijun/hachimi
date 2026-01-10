@@ -44,7 +44,7 @@ class ContextManager:
         if system_prompt:
             self.add_message({"role": "system", "content": system_prompt}, is_system=True)
     
-    def add_message(self, message: ChatCompletionMessageParam, is_system: bool = False):
+    def add_message(self, message: dict, is_system: bool = False):
         """
         添加消息到上下文
         
@@ -62,7 +62,7 @@ class ContextManager:
                 self.messages.insert(0, timestamped_msg)
         else:
             # 用户或助手消息
-            if message["role"] in ["user", "assistant"]:
+            if message['role'] in ["user", "assistant"]:
                 self.current_turn += 1 if message["role"] == "user" else 0
             
             timestamped_msg = TimestampedMessage(

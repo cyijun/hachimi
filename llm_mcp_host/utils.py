@@ -84,12 +84,5 @@ def parse_server_config(config_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]
 
 def create_tool_identifier(server_name: str, tool_name: str) -> str:
     """创建工具唯一标识符"""
-    return f"{server_name}:{tool_name}"
+    return f"{server_name}_{tool_name}"
 
-
-def parse_tool_identifier(tool_id: str) -> tuple[str, str]:
-    """解析工具唯一标识符"""
-    if ":" in tool_id:
-        server_name, tool_name = tool_id.split(":", 1)
-        return server_name, tool_name
-    return "default", tool_id

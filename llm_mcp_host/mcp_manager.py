@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from mcp import ClientSession
 from logger import logger
 
-from .utils import mcp_transport_factory, create_tool_identifier, parse_tool_identifier
+from .utils import mcp_transport_factory, create_tool_identifier
 from .tool_selector import ToolInfo
 
 

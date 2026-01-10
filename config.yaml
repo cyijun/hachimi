@@ -2,16 +2,14 @@
 # Voice assistant global configuration
 # Environment variable placeholder syntax: ${ENV_VAR_NAME:default_value}
 
-# MCP server configuration
-mcp_server:
-  type: "sse"  # stdio or sse
-  url: "http://hw-b520:8123/mcp_server/sse"
-  headers:
-    Authorization: "${MCP_AUTH_TOKEN}"
-  # If using stdio type
-  # command: "python"
-  # args: ["-m", "mcp_server"]
-  # env: {}
+# MCP服务器配置（支持多个服务器）
+mcp_servers:
+  # 服务器1：SSE类型
+  smart_home:
+    type: "sse"
+    url: "http://mininas:8123/mcp_server/sse"
+    headers:
+      Authorization: "${MCP_AUTH_TOKEN}"
 
 # LLM configuration
 llm:
@@ -51,3 +49,35 @@ voice_listener:
 # Process configuration
 process:
   queue_size: 100
+
+
+# 工具选择配置
+tool_selection:
+  top_k: 3  # 每次选择最相关的3个工具
+  use_vector_search: true  # 启用向量搜索
+  # Embedding API配置
+  embedding:
+    url: "https://api.siliconflow.cn/v1/embeddings"
+    model: "BAAI/bge-m3"
+    api_key: "${SILICONFLOW_API_KEY}"
+    dimensions: 1024  # 向量维度
+
+# 上下文管理配置
+context:
+  max_turns: 10  # 最大保存3个回合（用户+助手为一回合）
+  max_time_minutes: 30  # 上下文过期时间30分钟
+
+# 高级配置（可选）
+advanced:
+  # 工具调用重试配置
+  tool_retry:
+    max_attempts: 3
+    delay_seconds: 1
+  
+  # 性能监控
+  monitoring:
+    enable: true
+    stats_interval_turns: 5  # 每5轮输出一次统计信息
+  
+  # 日志级别
+  log_level: "INFO"

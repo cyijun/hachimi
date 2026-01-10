@@ -4,6 +4,7 @@
 """
 import asyncio
 import json
+import traceback
 from typing import List, Dict, Any, Optional
 
 from openai import AsyncOpenAI
@@ -164,7 +165,7 @@ class MCPVoiceAgent:
                 tool for tool in self.openai_tools
                 if tool["function"]["name"] in relevant_tool_names
             ]
-            logger.info(f"🔍 选择了 {len(tools_to_use)} 个相关工具")
+            logger.info(f"🔍 选择了 {len(tools_to_use)} 个相关工具: {relevant_tool_names}")
         
         while True:
             # 获取当前消息
@@ -179,7 +180,7 @@ class MCPVoiceAgent:
             )
             
             response_message = response.choices[0].message
-            self.context_manager.add_message(response_message)
+            self.context_manager.add_message(response_message.to_dict())
             
             # 情况A: LLM决定调用工具
             if response_message.tool_calls:
@@ -327,6 +328,7 @@ def process_llm_host(text_queue, tts_queue, interrupt_event):
                     
                 except Exception as e:
                     logger.error(f"❌ 处理循环错误: {e}")
+                    print(traceback.format_exc())
                     if interrupt_event.is_set():
                         break
     
