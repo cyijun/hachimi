@@ -53,7 +53,7 @@ process:
 
 # 工具选择配置
 tool_selection:
-  top_k: 3  # 每次选择最相关的3个工具
+  top_k: 10  # 每次选择最相关的3个工具
   use_vector_search: true  # 启用向量搜索
   # Embedding API配置
   embedding:
@@ -61,6 +61,7 @@ tool_selection:
     model: "BAAI/bge-m3"
     api_key: "${SILICONFLOW_API_KEY}"
     dimensions: 1024  # 向量维度
+    timeout: 10  # 请求超时时间，单位秒
 
 # 上下文管理配置
 context:

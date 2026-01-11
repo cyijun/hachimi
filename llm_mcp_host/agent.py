@@ -14,7 +14,7 @@ from logger import logger
 
 from .utils import parse_server_config, mcp_tools_to_openai_tools
 from .context_manager import ContextManager
-from .tool_selector import ToolSelector, ToolInfo
+from .vector_tool_selector import VectorToolSelector as ToolSelector, ToolInfo
 from .mcp_manager import MCPServerManager
 from .prompt_manager import PromptManager
 
@@ -56,7 +56,7 @@ class MCPVoiceAgent:
             system_prompt=self.system_prompt
         )
         
-        self.tool_selector = ToolSelector(top_k=self.top_k)
+        self.tool_selector = ToolSelector(top_k=self.top_k, config=self.tool_selection_config)
         self.mcp_manager = MCPServerManager()
         self.prompt_manager = PromptManager(system_prompt=self.system_prompt)
         
