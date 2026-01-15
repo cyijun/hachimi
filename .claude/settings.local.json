@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(conda env list:*)",
+      "Bash(conda run:*)",
+      "Bash(dir:*)",
+      "Bash(\"C:\\\\Users\\\\cyijun\\\\miniconda3\\\\envs\\\\dev\\\\python.exe\":*)"
+    ]
+  }
+}

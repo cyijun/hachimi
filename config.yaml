@@ -67,6 +67,12 @@ tool_selection:
 context:
   max_turns: 10  # 最大保存3个回合（用户+助手为一回合）
   max_time_minutes: 30  # 上下文过期时间30分钟
+  enable_summarization: true  # 是否启用总结机制，当上下文超过回合数时生成总结
+  summary_role: "user"  # 总结消息的角色，可选"user"或"system"
+  # 总结相关配置（仅在enable_summarization为true时生效）
+  summarization:
+    max_summary_tokens: 200  # 总结的最大token数
+    summary_prompt: "请用中文简洁总结以下对话历史，保留关键信息，总结长度不超过{max_tokens}个token："  # 总结提示词模板，{max_tokens}会被替换为实际值
 
 # 高级配置（可选）
 advanced:

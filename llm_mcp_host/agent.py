@@ -43,6 +43,14 @@ class MCPVoiceAgent:
         self.context_config = self.config.get('context', {})
         self.max_turns = self.context_config.get('max_turns', 3)
         self.max_time_minutes = self.context_config.get('max_time_minutes', 30)
+        self.enable_summarization = self.context_config.get('enable_summarization', False)
+        self.summary_role = self.context_config.get('summary_role', 'user')
+
+        # 总结配置
+        self.summarization_config = self.context_config.get('summarization', {})
+        self.max_summary_tokens = self.summarization_config.get('max_summary_tokens', 200)
+        self.summary_prompt = self.summarization_config.get('summary_prompt',
+            "请用中文简洁总结以下对话历史，保留关键信息，总结长度不超过{max_tokens}个token：")
         
         # 初始化组件
         self.openai_client = AsyncOpenAI(
@@ -53,7 +61,12 @@ class MCPVoiceAgent:
         self.context_manager = ContextManager(
             max_turns=self.max_turns,
             max_time_seconds=self.max_time_minutes * 60,
-            system_prompt=self.system_prompt
+            system_prompt=self.system_prompt,
+            enable_summarization=self.enable_summarization,
+            summary_role=self.summary_role,
+            max_summary_tokens=self.max_summary_tokens,
+            summary_prompt=self.summary_prompt,
+            openai_client=self.openai_client  # 传递LLM客户端用于生成总结
         )
         
         self.tool_selector = ToolSelector(top_k=self.top_k, config=self.tool_selection_config)
