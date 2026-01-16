@@ -15,17 +15,16 @@ def test_config_loads():
     print("=== 测试配置加载 ===")
     
     # 检查全局配置实例
-    assert hasattr(config, 'config'), "config模块应该有config实例"
-    assert isinstance(config.config, config.Config), "config应该是Config实例"
+    assert hasattr(config, 'global_config'), "config模块应该有global_config实例"
+    assert isinstance(config.global_config, config.Config), "global_config应该是Config实例"
     
     print(f"[OK] 配置实例创建成功")
-    print(f"[OK] 配置路径: {config.config.config_path}")
-
+    print(f"[OK] 配置路径: {config.global_config.config_path}")
 def test_config_get():
     """测试配置获取"""
     print("\n=== 测试配置获取 ===")
     
-    cfg = config.config
+    cfg = config.global_config
     
     # 测试获取嵌套值
     llm_config = cfg.llm
@@ -79,7 +78,7 @@ def test_config_properties():
     """测试配置属性"""
     print("\n=== 测试配置属性 ===")
     
-    cfg = config.config
+    cfg = config.global_config
     
     # 测试各种属性
     assert hasattr(cfg, 'llm'), "应该有llm属性"

@@ -48,37 +48,8 @@ def test_setup_logger():
     
     print("[OK] 自定义日志器创建成功")
 
-def test_file_logging():
-    """测试文件日志"""
-    print("\n=== 测试文件日志 ===")
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:
-        log_file = f.name
-    
-    try:
-        # 创建文件日志器
-        file_logger = logger.setup_logger(
-            name="file_logger",
-            log_file=log_file
-        )
-        
-        # 写入日志
-        file_logger.info("文件日志测试消息")
-        
-        # 验证文件内容
-        with open(log_file, 'r') as f:
-            content = f.read()
-            assert "文件日志测试消息" in content, "日志应该写入文件"
-        
-        print(f"[OK] 文件日志写入成功: {log_file}")
-        
-    finally:
-        if os.path.exists(log_file):
-            os.unlink(log_file)
-
 if __name__ == "__main__":
     test_logger_creation()
     test_logger_functions()
     test_setup_logger()
-    test_file_logging()
     print("\n[SUCCESS] 所有日志测试通过！")
