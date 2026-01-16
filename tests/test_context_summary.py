@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 # 直接导入context_manager模块，避免导入agent和config
 spec = importlib.util.spec_from_file_location(
     "context_manager",
-    "llm_mcp_host/context_manager.py"
+    "src/llm_mcp_host/context_manager.py"
 )
 context_manager = importlib.util.module_from_spec(spec)
 sys.modules["context_manager"] = context_manager

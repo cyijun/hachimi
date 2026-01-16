@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionToolParam
-from config import config as global_config
+from config import global_config
 from logger import logger
 
 from .utils import parse_server_config, mcp_tools_to_openai_tools

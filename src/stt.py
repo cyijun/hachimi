@@ -1,5 +1,5 @@
 import requests
-from config import config
+from config import global_config
 from logger import logger
 
 
@@ -10,7 +10,7 @@ def process_stt(audio_queue, text_queue, interrupt_event):
     logger.info("[STT] Process starting...")
 
     # Get STT parameters from configuration
-    stt_config = config.stt
+    stt_config = global_config.stt
     url = stt_config["url"]
     model = stt_config["model"]
     api_key = stt_config["api_key"]

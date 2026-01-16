@@ -88,4 +88,4 @@ class Config:
         return self.get('process', {})
 
 # Global configuration instance
-config = Config()
+global_config = Config()

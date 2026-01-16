@@ -1,0 +1,53 @@
+# config.yaml
+# Voice assistant global configuration
+# Environment variable placeholder syntax: ${ENV_VAR_NAME:default_value}
+
+# MCP server configuration
+mcp_server:
+  type: "sse"  # stdio or sse
+  url: "http://mininas:8123/mcp_server/sse"
+  headers:
+    Authorization: "${MCP_AUTH_TOKEN}"
+  # If using stdio type
+  # command: "python"
+  # args: ["-m", "mcp_server"]
+  # env: {}
+
+# LLM configuration
+llm:
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+  temperature: 0.7
+
+# System prompt
+system_prompt: "你是一个智能家居语音助手。你的回答必须只有一两句话且口语化，适合语音播报。"
+
+# STT (Speech-to-Text) configuration
+stt:
+  url: "https://api.siliconflow.cn/v1/audio/transcriptions"
+  model: "FunAudioLLM/SenseVoiceSmall"
+  api_key: "${SILICONFLOW_API_KEY}"
+
+# TTS (Text-to-Speech) configuration
+tts:
+  api_key: "${SILICONFLOW_API_KEY}"
+  base_url: "https://api.siliconflow.cn/v1"
+  model: "FunAudioLLM/CosyVoice2-0.5B"
+  voice: "FunAudioLLM/CosyVoice2-0.5B:diana"
+  sample_rate: 44100
+
+# Voice listener configuration
+voice_listener:
+  wake_word_model_path: "${WAKE_WORD_MODEL_PATH:hey jarvis}"
+  channels: 1
+  rate: 16000
+  chunk: 1280
+  vad_frame_ms: 30
+  wake_word_threshold: 0.5
+  silence_limit_seconds: 1.5
+  min_record_seconds: 0.5
+
+# Process configuration
+process:
+  queue_size: 100
