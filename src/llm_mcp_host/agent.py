@@ -85,7 +85,7 @@ class MCPVoiceAgent:
     
     async def __aenter__(self):
         """初始化连接"""
-        logger.info("🚀 初始化增强版MCP语音代理...")
+        logger.info("🚀 Initializing enhanced MCP voice agent...")
         
         # 解析服务器配置
         server_configs = parse_server_config({
@@ -104,11 +104,11 @@ class MCPVoiceAgent:
         
         # 统计成功连接的服务器
         successful_connections = sum(1 for r in results if r is True)
-        logger.info(f"✅ 成功连接 {successful_connections}/{len(server_configs)} 个MCP服务器")
+        logger.info(f"✅ Successfully connected to {successful_connections}/{len(server_configs)} MCP servers")
         
         # 获取所有工具
         all_tools = await self.mcp_manager.get_all_tools()
-        logger.info(f"🛠️  总共加载 {len(all_tools)} 个工具")
+        logger.info(f"🛠️  Total loaded {len(all_tools)} tools")
         
         # 构建工具索引
         self.tool_selector.build_index(all_tools)
@@ -120,7 +120,7 @@ class MCPVoiceAgent:
         mcp_prompts = await self.mcp_manager.get_all_prompts()
         if mcp_prompts:
             self.prompt_manager.add_mcp_prompts(mcp_prompts)
-            logger.info(f"📝 加载 {len(mcp_prompts)} 个MCP提示")
+            logger.info(f"📝  Loaded {len(mcp_prompts)} MCP prompts")
         
         # 更新系统提示以包含MCP上下文
         combined_prompt = self.prompt_manager.get_combined_prompt(include_mcp_context=True)
@@ -130,14 +130,14 @@ class MCPVoiceAgent:
             is_system=True
         )
         
-        logger.info("🎉 增强版MCP语音代理就绪")
+        logger.info("🎉  Enhanced MCP voice agent ready")
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """清理资源"""
-        logger.info("🔌 关闭增强版MCP语音代理...")
+        logger.info("🔌  Shutting down enhanced MCP voice agent...")
         await self.mcp_manager.close()
-        logger.info("👋 增强版MCP语音代理已关闭")
+        logger.info("👋  Enhanced MCP voice agent closed")
     
     async def chat(self, user_text: str) -> str:
         """
@@ -152,7 +152,7 @@ class MCPVoiceAgent:
         if not user_text or not user_text.strip():
             return ""
         
-        logger.info(f"👂 听到: {user_text}")
+        logger.info(f"👂  Heard: {user_text}")
         self.stats["total_turns"] += 1
         
         # 添加到上下文
@@ -161,7 +161,7 @@ class MCPVoiceAgent:
         # 处理LLM回合
         final_response = await self._process_llm_turn(user_text)
         
-        logger.info(f"🗣️  回复: {final_response}")
+        logger.info(f"🗣️  Response: {final_response}")
         return final_response
     
     async def _process_llm_turn(self, user_query: str) -> str:
@@ -178,7 +178,7 @@ class MCPVoiceAgent:
                 tool for tool in self.openai_tools
                 if tool["function"]["name"] in relevant_tool_names
             ]
-            logger.info(f"🔍 选择了 {len(tools_to_use)} 个相关工具: {relevant_tool_names}")
+            logger.info(f"🔍  Selected {len(tools_to_use)} relevant tools: {relevant_tool_names}")
         
         while True:
             # 获取当前消息
@@ -227,7 +227,7 @@ class MCPVoiceAgent:
                         except Exception as e:
                             content_str = f"工具执行错误: {str(e)}"
                             self.stats["total_errors"] += 1
-                            logger.error(f"❌ 工具执行失败 {tool_name}: {e}")
+                            logger.error(f"❌  Tool execution failed {tool_name}: {e}")
                     
                     # 将工具结果返回给LLM
                     self.context_manager.add_message({
@@ -302,7 +302,7 @@ class MCPVoiceAgent:
     def clear_context(self):
         """清空对话上下文"""
         self.context_manager.clear()
-        logger.info("🧹 对话上下文已清空")
+        logger.info("Cleared conversation context")
 
 
 def process_llm_host(text_queue, tts_queue, interrupt_event):
@@ -315,7 +315,7 @@ def process_llm_host(text_queue, tts_queue, interrupt_event):
         tts_queue: 文本输出队列（LLM -> TTS）
         interrupt_event: 中断事件
     """
-    logger.info("[LLM] 增强版MCP Host进程启动...")
+    logger.info("[LLM] Enhanced MCP Host process starting...")
     
     async def voice_assistant_loop(text_queue, tts_queue, interrupt_event):
         async with MCPVoiceAgent() as agent:
@@ -335,12 +335,12 @@ def process_llm_host(text_queue, tts_queue, interrupt_event):
                     # 记录统计信息（每5轮）
                     if agent.stats["total_turns"] % 5 == 0:
                         stats = agent.get_agent_stats()
-                        logger.info(f"📊 代理统计: {stats}")
+                        logger.info(f"📊 Agent statistics: {stats}")
                     
                     logger.info("-" * 50)
                     
                 except Exception as e:
-                    logger.error(f"❌ 处理循环错误: {e}")
+                    logger.error(f"❌ Processing loop error: {e}")
                     print(traceback.format_exc())
                     if interrupt_event.is_set():
                         break
@@ -348,8 +348,8 @@ def process_llm_host(text_queue, tts_queue, interrupt_event):
     try:
         asyncio.run(voice_assistant_loop(text_queue, tts_queue, interrupt_event))
     except KeyboardInterrupt:
-        logger.info("🛑 收到中断信号，停止LLM Host进程")
+        logger.info("🛑 Received interrupt signal, stopping LLM Host process")
     except Exception as e:
-        logger.error(f"❌ LLM Host运行时错误: {e}")
+        logger.error(f"❌ LLM Host runtime error: {e}")
     finally:
-        logger.info("[LLM] 增强版MCP Host进程结束")
+        logger.info("[LLM] Enhanced MCP Host process ended")
