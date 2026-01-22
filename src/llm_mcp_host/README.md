@@ -1,253 +1,695 @@
-# LLM MCP Host 重构模块
+# LLM MCP Host Module
 
-## 概述
+## Overview
 
-这是对 `llm_mcp_host.py` 的模块化重构版本，提供了以下增强功能：
+This is a modular MCP (Model Context Protocol) host implementation for the Hachimi voice assistant. It provides enhanced features including:
 
-1. **向量搜索工具匹配** - 基于用户查询选择最相关的工具（mock实现）
-2. **聊天上下文管理** - 基于时间和回合数的上下文过期机制
-3. **多MCP服务器支持** - 同时连接和管理多个MCP服务器
-4. **MCP提示获取** - 从MCP服务器获取和使用提示
+1. **Vector-based Tool Selection** - Intelligently selects the most relevant tools for user queries using BGE-M3 embeddings
+2. **Context Management** - Advanced conversation context with time-based and turn-based expiration, plus optional LLM-based summarization
+3. **Multi-MCP Server Support** - Simultaneous connection and management of multiple MCP servers
+4. **MCP Prompt Management** - Discover and use MCP prompts from connected servers
 
-## 模块结构
+## Module Structure
 
 ```
-llm_mcp_host_refactor/
-├── __init__.py              # 模块导出
-├── agent.py                 # 主Agent类
-├── context_manager.py       # 上下文管理
-├── tool_selector.py         # 工具选择器（向量搜索mock）
-├── mcp_manager.py           # MCP服务器管理器
-├── prompt_manager.py        # 提示管理器
-├── utils.py                 # 工具函数
-├── config_example.yaml      # 配置示例
-└── README.md                # 本文档
+src/llm_mcp_host/
+├── __init__.py               # Module exports and initialization
+入口：所有公共API的导出点
+├── agent.py                  # Main MCPVoiceAgent class
+主代理类，整合所有功能模块
+├── context_manager.py         # Context management with expiration & summarization
+上下文管理，支持时间/回合过期和LLM总结
+├── vector_tool_selector.py    # Vector-based tool selection using embeddings
+向量搜索工具选择器，基于BGE-M3 embedding
+├── tool_selector.py          # Base tool selector interface
+工具选择器基类定义
+├── mcp_manager.py            # Multi-server MCP manager
+MCP服务器管理器，支持多服务器连接
+├── prompt_manager.py         # MCP prompt discovery & loading
+提示管理器，管理MCP提示和系统提示整合
+├── utils.py                  # Utility functions
+工具函数和辅助方法
+├── config_example.yaml        # Configuration example
+配置示例文件
+└── README.md                 # This document
 ```
 
-## 快速开始
+## Quick Start
 
-### 1. 安装依赖
+### 1. Install Dependencies
 
-确保已安装所需依赖：
+Ensure you have the required dependencies installed:
+
 ```bash
-pip install openai mcp
+pip install openai mcp numpy requests
 ```
 
-### 2. 更新配置
+### 2. Configuration
 
-更新 `config.yaml` 以支持新功能：
+The module uses `config.yaml` in the project root. Key configuration sections:
 
 ```yaml
-# MCP服务器配置（支持多个服务器）
+# MCP servers configuration (supports multiple servers)
 mcp_servers:
-  server1:
+  smart_home:
     type: "sse"
-    url: "http://server1/mcp"
+    url: "http://your-mcp-server:8123/mcp_server/sse"
     headers:
       Authorization: "${MCP_AUTH_TOKEN}"
-  
-  server2:
-    type: "stdio"
-    command: "python"
-    args: ["-m", "mcp_server"]
 
-# 工具选择配置
+# Tool selection configuration
 tool_selection:
-  top_k: 3
+  top_k: 10  # Select top 10 most relevant tools
+  use_vector_search: true
+  embedding:
+    url: "https://api.siliconflow.cn/v1/embeddings"
+    model: "BAAI/bge-m3"
+    api_key: "${SILICONFLOW_API_KEY}"
+    dimensions: 1024
 
-# 上下文管理配置
+# Context management configuration
 context:
-  max_turns: 3
-  max_time_minutes: 30
+  max_turns: 10  # Keep last 10 conversation turns
+  max_time_minutes: 30  # Expire context after 30 minutes
+  enable_summarization: true  # Enable LLM-based summarization
+  summary_role: "user"
+  summarization:
+    max_summary_tokens: 200
+    summary_prompt: "请用中文简洁总结以下对话历史，保留关键信息，总结长度不超过{max_tokens}个token："
 ```
 
-### 3. 使用重构后的模块
+### 3. Usage
 
-#### 方式一：替换原有导入（推荐）
+#### Method 1: Using with main.py (Default)
 
-修改 `main.py` 中的导入：
+The module is already integrated with the main voice assistant system:
 
-```python
-# 原导入
-# from llm_mcp_host import process_llm_host
-
-# 新导入
-from llm_mcp_host_refactor import process_llm_host
+```bash
+python main.py
 ```
 
-#### 方式二：直接使用新Agent类
+#### Method 2: Using MCPVoiceAgent directly
 
 ```python
-from llm_mcp_host_refactor import MCPVoiceAgent
 import asyncio
+from src.llm_mcp_host import MCPVoiceAgent
 
 async def main():
     async with MCPVoiceAgent() as agent:
         response = await agent.chat("打开客厅的灯")
-        print(f"助手回复: {response}")
+        print(f"Assistant response: {response}")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 功能详解
+#### Method 3: Using individual components
 
-### 1. 向量搜索工具匹配（Mock）
+```python
+from src.llm_mcp_host import MCPServerManager, VectorToolSelector, ContextManager
+import asyncio
 
-- **build_index()**: 模拟构建工具向量库
-- **search()**: 基于简单文本相似度选择topk最相关工具
-- 使用词频向量和余弦相似度计算工具相关性
-- 支持工具名称匹配加分
+async def main():
+    # Create components
+    mcp_manager = MCPServerManager()
+    tool_selector = VectorToolSelector(top_k=5)
+    context_manager = ContextManager(max_turns=5)
 
-### 2. 聊天上下文管理
+    # Connect to MCP servers
+    await mcp_manager.add_server("my_server", {
+        "type": "sse",
+        "url": "http://server/mcp",
+        "headers": {"Authorization": "your-token"}
+    })
 
-- **基于回合数**: 默认保存最近3个回合的对话
-- **基于时间**: 默认30分钟后过期
-- **智能清理**: 自动清理过期消息，保留系统提示
-- **统计信息**: 提供详细的上下文统计
+    # Get and index tools
+    tools = await mcp_manager.get_all_tools()
+    tool_selector.build_index(tools)
 
-### 3. 多MCP服务器支持
+    # Use tool selector
+    relevant_tools = tool_selector.search("控制灯光")
 
-- **统一管理**: 同时连接多个MCP服务器
-- **工具映射**: 自动处理同名工具冲突
-- **调用路由**: 将工具调用路由到正确的服务器
-- **故障隔离**: 单个服务器故障不影响其他服务器
+if __name__ == "__main__":
+    asyncio.run(main())
+```
 
-### 4. MCP提示获取
+## Feature Details
 
-- **提示发现**: 自动从所有服务器发现可用提示
-- **内容加载**: 按需加载提示内容
-- **上下文整合**: 将MCP提示整合到系统提示中
-- **缓存机制**: 缓存已加载的提示内容
+### 1. Vector-based Tool Selection
 
-## 配置说明
+Uses BGE-M3 embeddings to intelligently select the most relevant tools for each query:
 
-### 向后兼容性
+**Key Features:**
+- **Embedding API Integration**: Uses SiliconFlow's BAAI/bge-m3 model for embeddings
+- **Cosine Similarity**: Calculates similarity between user query and tool descriptions
+- **Tool Name Bonus**: Additional scoring for tools with matching names
+- **Fallback Mechanism**: Falls back to frequency-based search if embedding API fails
+- **Query Caching**: Caches embedding vectors for repeated queries
 
-重构模块完全兼容原有配置格式。如果使用旧版单服务器配置：
+**Implementation:**
+
+```python
+from src.llm_mcp_host import VectorToolSelector, ToolInfo
+
+# Initialize selector
+selector = VectorToolSelector(top_k=5, config={
+    'embedding': {
+        'url': 'https://api.siliconflow.cn/v1/embeddings',
+        'model': 'BAAI/bge-m3',
+        'api_key': 'your-api-key',
+        'dimensions': 1024
+    }
+})
+
+# Build index with tools
+tools = [ToolInfo(...), ...]
+selector.build_index(tools)
+
+# Search for relevant tools
+relevant = selector.search("打开空调")
+```
+
+**Configuration:**
+
+```yaml
+tool_selection:
+  top_k: 10
+  use_vector_search: true
+  embedding:
+    url: "https://api.siliconflow.cn/v1/embeddings"
+    model: "BAAI/bge-m3"
+    api_key: "${SILICONFLOW_API_KEY}"
+    dimensions: 1024
+```
+
+### 2. Context Management
+
+Advanced conversation context with automatic expiration and optional LLM summarization:
+
+**Key Features:**
+- **Turn-based Expiration**: Keeps only recent N conversation turns
+- **Time-based Expiration**: Automatically expires old messages after N minutes
+- **LLM Summarization**: Optionally summarizes old conversation turns to preserve key information
+- **System Prompt Preservation**: System prompts are never expired
+- **Smart Cleanup**: Automatic cleanup of expired messages while preserving context
+
+**Implementation:**
+
+```python
+from src.llm_mcp_host import ContextManager
+from openai import AsyncOpenAI
+
+# Initialize with OpenAI client for summarization
+openai_client = AsyncOpenAI(api_key="your-key", base_url="your-url")
+
+context = ContextManager(
+    max_turns=10,
+    max_time_seconds=1800,  # 30 minutes
+    system_prompt="You are a helpful assistant.",
+    enable_summarization=True,
+    summary_role="user",
+    max_summary_tokens=200,
+    summary_prompt="请用中文简洁总结以下对话历史，保留关键信息，总结长度不超过{max_tokens}个token：",
+    openai_client=openai_client
+)
+
+# Add messages
+context.add_message({"role": "user", "content": "Hello"})
+context.add_message({"role": "assistant", "content": "Hi there!"})
+
+# Get current context
+messages = context.get_messages()
+
+# Clear context
+context.clear(keep_system=True)
+```
+
+**Configuration:**
+
+```yaml
+context:
+  max_turns: 10
+  max_time_minutes: 30
+  enable_summarization: true
+  summary_role: "user"
+  summarization:
+    max_summary_tokens: 200
+    summary_prompt: "请用中文简洁总结以下对话历史，保留关键信息，总结长度不超过{max_tokens}个token："
+```
+
+**Summarization Strategy:**
+
+1. Messages exceeding turn limit trigger summarization
+2. LLM generates concise summary preserving key information
+3. Summary message inserted as a new message in context
+4. If LLM summarization fails, falls back to simple text merger
+
+### 3. Multi-MCP Server Support
+
+Connect to multiple MCP servers simultaneously:
+
+**Key Features:**
+- **Unified Management**: Connect to multiple servers (SSE or Stdio)
+- **Tool Discovery**: Automatic tool discovery from all servers
+- **Tool Routing**: Automatic tool call routing to correct server
+- **Conflict Resolution**: Handles tools with same names across servers
+- **Fault Isolation**: Single server failure doesn't affect others
+- **Prompt Discovery**: Discover and use MCP prompts from all servers
+
+**Implementation:**
+
+```python
+from src.llm_mcp_host import MCPServerManager
+import asyncio
+
+async def main():
+    manager = MCPServerManager()
+
+    # Add multiple servers
+    await manager.add_server("smart_home", {
+        "type": "sse",
+        "url": "http://home-server/mcp",
+        "headers": {"Authorization": "token1"}
+    })
+
+    await manager.add_server("weather", {
+        "type": "stdio",
+        "command": "python",
+        "args": ["-m", "weather_mcp"]
+    })
+
+    # Get all tools from all servers
+    all_tools = await manager.get_all_tools()
+
+    # Call a tool (automatically routed)
+    result = await manager.call_tool("smart_home:turn_on_light", {"room": "living_room"})
+
+    # Get prompts
+    prompts = await manager.get_all_prompts()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**Configuration:**
+
+```yaml
+mcp_servers:
+  smart_home:
+    type: "sse"
+    url: "http://server:8123/mcp_server/sse"
+    headers:
+      Authorization: "${MCP_AUTH_TOKEN}"
+
+  weather_service:
+    type: "stdio"
+    command: "python"
+    args: ["-m", "weather_mcp"]
+```
+
+### 4. MCP Prompt Management
+
+Discover and manage MCP prompts from connected servers:
+
+**Key Features:**
+- **Prompt Discovery**: Automatic discovery of available prompts
+- **Lazy Loading**: Load prompt content on demand
+- **Context Integration**: Integrate MCP prompts into system prompt
+- **Caching**: Cache loaded prompt content
+- **Custom Prompts**: Add custom prompts programmatically
+
+**Implementation:**
+
+```python
+from src.llm_mcp_host import PromptManager
+
+# Initialize
+prompt_mgr = PromptManager(system_prompt="You are a helpful assistant.")
+
+# Add MCP prompts (automatically done during agent initialization)
+prompt_mgr.add_mcp_prompts([
+    {"name": "weather_query", "server": "weather", "description": "Query weather", "arguments": {}}
+])
+
+# Load prompt content
+content = await prompt_mgr.load_prompt("weather_query", mcp_manager)
+
+# Get combined prompt (system + MCP context)
+combined = prompt_mgr.get_combined_prompt(include_mcp_context=True)
+
+# Add custom prompt
+prompt_mgr.add_custom_prompt(
+    name="custom_task",
+    content="This is a custom prompt template.",
+    description="Custom prompt for specific task",
+    server="custom"
+)
+```
+
+## API Reference
+
+### MCPVoiceAgent Class
+
+Main agent class that integrates all components.
+
+**Initialization:**
+
+```python
+MCPVoiceAgent(config=None)
+```
+
+**Methods:**
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `async __aenter__()` | Initialize connections and prepare agent | Self |
+| `async __aexit__()` | Clean up resources | None |
+| `async chat(user_text: str)` | Process user input and return response | str |
+| `async load_prompt(prompt_name: str, **kwargs)` | Load MCP prompt | Optional[str] |
+| `clear_context()` | Clear conversation context | None |
+| `get_context_stats()` | Get context statistics | Dict[str, Any] |
+| `get_tool_stats()` | Get tool selection statistics | Dict[str, Any] |
+| `get_mcp_stats()` | Get MCP server statistics | Dict[str, Any] |
+| `get_prompt_stats()` | Get prompt statistics | Dict[str, Any] |
+| `get_agent_stats()` | Get overall agent statistics | Dict[str, Any] |
+
+**Example:**
+
+```python
+async with MCPVoiceAgent() as agent:
+    response = await agent.chat("打开客厅的灯")
+    stats = agent.get_agent_stats()
+    print(stats)
+```
+
+### VectorToolSelector Class
+
+Vector-based tool selection using embeddings.
+
+**Initialization:**
+
+```python
+VectorToolSelector(top_k: int = 3, config: Dict[str, Any] = None)
+```
+
+**Methods:**
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `build_index(tools: List[ToolInfo])` | Build vector index for tools | None |
+| `search(query: str)` | Search for relevant tools | List[ToolInfo] |
+| `search_with_scores(query: str)` | Search with similarity scores | List[Tuple[ToolInfo, float]] |
+| `clear_cache()` | Clear query vector cache | None |
+| `get_stats()` | Get selector statistics | Dict[str, Any] |
+
+### ContextManager Class
+
+Advanced conversation context management.
+
+**Initialization:**
+
+```python
+ContextManager(
+    max_turns: int = 3,
+    max_time_seconds: int = 1800,
+    system_prompt: Optional[str] = None,
+    enable_summarization: bool = False,
+    summary_role: str = "user",
+    max_summary_tokens: int = 200,
+    summary_prompt: str = "请用中文简洁总结以下对话历史，保留关键信息，总结长度不超过{max_tokens}个token：",
+    openai_client: Optional[Any] = None
+)
+```
+
+**Methods:**
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `add_message(message: dict, is_system: bool = False)` | Add message to context | None |
+| `get_messages()` | Get all current messages | List[ChatCompletionMessageParam] |
+| `clear(keep_system: bool = True)` | Clear context | None |
+| `get_stats()` | Get context statistics | Dict[str, Any] |
+
+### MCPServerManager Class
+
+Manage multiple MCP servers.
+
+**Initialization:**
+
+```python
+MCPServerManager()
+```
+
+**Methods:**
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `async add_server(server_name: str, config: Dict[str, Any])` | Connect to MCP server | bool |
+| `async get_all_tools()` | Get all tools from all servers | List[ToolInfo] |
+| `async get_all_prompts()` | Get all prompts from all servers | List[Dict[str, Any]] |
+| `async call_tool(tool_name: str, arguments: Dict[str, Any])` | Execute tool | Any |
+| `async get_prompt(prompt_name: str, server_name: Optional[str], **kwargs)` | Get prompt content | Optional[str] |
+| `async close()` | Close all connections | None |
+| `get_stats()` | Get manager statistics | Dict[str, Any] |
+
+### PromptManager Class
+
+Manage system prompts and MCP prompts.
+
+**Initialization:**
+
+```python
+PromptManager(system_prompt: str = "")
+```
+
+**Methods:**
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `add_mcp_prompts(prompts: List[Dict[str, Any]])` | Add MCP prompts | None |
+| `async load_prompt(prompt_name: str, mcp_manager, **kwargs)` | Load prompt content | Optional[str] |
+| `get_combined_prompt(include_mcp_context: bool = True)` | Get combined prompt | str |
+| `get_prompt_info(prompt_name: str)` | Get prompt information | Optional[PromptInfo] |
+| `get_all_prompt_names()` | Get all prompt names | List[str] |
+| `clear_loaded_prompts()` | Clear loaded prompts | None |
+| `update_system_prompt(new_prompt: str)` | Update system prompt | None |
+| `add_custom_prompt(name, content, description, server)` | Add custom prompt | None |
+| `get_stats()` | Get manager statistics | Dict[str, Any] |
+
+### Utility Functions
+
+**mcp_tools_to_openai_tools(tool_result)**
+
+Convert MCP tools to OpenAI tool format.
+
+**parse_server_config(config_dict)**
+
+Parse server configuration (handles backward compatibility).
+
+**create_tool_identifier(server_name, tool_name)**
+
+Create unique tool identifier.
+
+**mcp_transport_factory(config)**
+
+Create MCP transport layer (SSE or Stdio).
+
+## Configuration Reference
+
+### Complete Configuration Example
+
+```yaml
+# MCP servers configuration (supports multiple servers)
+mcp_servers:
+  smart_home:
+    type: "sse"
+    url: "http://server:8123/mcp_server/sse"
+    headers:
+      Authorization: "${MCP_AUTH_TOKEN}"
+
+  weather_service:
+    type: "stdio"
+    command: "python"
+    args: ["-m", "weather_mcp"]
+    env:
+      WEATHER_API_KEY: "${WEATHER_API_KEY}"
+
+# Tool selection configuration
+tool_selection:
+  top_k: 10  # Number of relevant tools to select
+  use_vector_search: true
+  embedding:
+    url: "https://api.siliconflow.cn/v1/embeddings"
+    model: "BAAI/bge-m3"
+    api_key: "${SILICONFLOW_API_KEY}"
+    dimensions: 1024
+    timeout: 10
+
+# Context management configuration
+context:
+  max_turns: 10  # Maximum conversation turns to keep
+  max_time_minutes: 30  # Context expiration time
+  enable_summarization: true  # Enable LLM summarization
+  summary_role: "user"  # Summary message role
+  summarization:
+    max_summary_tokens: 200
+    summary_prompt: "请用中文简洁总结以下对话历史，保留关键信息，总结长度不超过{max_tokens}个token："
+
+# LLM configuration
+llm:
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+  temperature: 0.7
+
+# System prompt
+system_prompt: "你是一个智能家居语音助手。你的回答必须只有一两句话且口语化，适合语音播报。"
+```
+
+### Backward Compatibility
+
+The module supports the old single-server configuration format:
 
 ```yaml
 mcp_server:
   type: "sse"
   url: "http://server/mcp"
+  headers:
+    Authorization: "${MCP_AUTH_TOKEN}"
 ```
 
-模块会自动将其转换为多服务器格式（服务器名为"default"）。
+This will automatically be converted to multi-server format with server name "default".
 
-### 新配置项
+## Performance Monitoring
 
-| 配置项 | 说明 | 默认值 |
-|--------|------|--------|
-| `mcp_servers` | MCP服务器列表（字典或列表） | - |
-| `tool_selection.top_k` | 每次选择的最相关工具数 | 3 |
-| `context.max_turns` | 最大保存对话回合数 | 3 |
-| `context.max_time_minutes` | 上下文过期时间（分钟） | 30 |
-
-## API参考
-
-### MCPVoiceAgent 类
-
-#### 主要方法
-
-- `__aenter__()`: 初始化连接
-- `__aexit__()`: 清理资源
-- `chat(user_text: str) -> str`: 处理用户输入
-- `load_prompt(prompt_name: str, **kwargs) -> Optional[str]`: 加载MCP提示
-- `clear_context()`: 清空对话上下文
-
-#### 统计方法
-
-- `get_context_stats()`: 获取上下文统计
-- `get_tool_stats()`: 获取工具统计
-- `get_mcp_stats()`: 获取MCP服务器统计
-- `get_prompt_stats()`: 获取提示统计
-- `get_agent_stats()`: 获取代理整体统计
-
-### process_llm_host 函数
-
-保持与原有接口完全兼容：
+The agent provides detailed performance statistics:
 
 ```python
-def process_llm_host(text_queue, tts_queue, interrupt_event):
-    """
-    参数:
-    - text_queue: 文本输入队列（STT -> LLM）
-    - tts_queue: 文本输出队列（LLM -> TTS）
-    - interrupt_event: 中断事件
-    """
+stats = agent.get_agent_stats()
 ```
 
-## 性能监控
+**Statistics include:**
+- `total_turns`: Total conversation turns
+- `total_tool_calls`: Total tool executions
+- `total_errors`: Total error count
+- `context`: Context usage statistics
+- `tools`: Tool selection statistics
+- `mcp`: MCP server connection status
+- `prompts`: Prompt management statistics
 
-代理提供详细的性能统计：
+**Statistics are logged every N turns** (configurable via `advanced.monitoring.stats_interval_turns`).
 
-- 总对话回合数
-- 总工具调用次数
-- 错误统计
-- 上下文使用情况
-- 工具选择效果
-- 服务器连接状态
+## Troubleshooting
 
-统计信息默认每5轮输出一次到日志。
+### Common Issues
 
-## 故障排除
+1. **MCP Server Connection Failed**
+   - Check server configuration (URL, command, args)
+   - Verify authentication headers/tokens
+   - Check network connectivity
+   - Ensure MCP server is running
 
-### 常见问题
+2. **Tool Execution Failed**
+   - Check tool parameter format
+   - Verify tool permissions
+   - Check MCP server logs
+   - Ensure tool exists in server
 
-1. **服务器连接失败**
-   - 检查服务器配置（URL、命令、参数）
-   - 验证认证信息
-   - 检查网络连接
+3. **Embedding API Errors**
+   - Verify SiliconFlow API key is correct
+   - Check API quota and limits
+   - Ensure network connectivity to embedding API
+   - System will fallback to frequency-based search
 
-2. **工具调用失败**
-   - 检查工具参数格式
-   - 验证工具权限
-   - 查看服务器日志
+4. **Context Summarization Issues**
+   - Ensure LLM client is properly configured
+   - Check LLM API key and access
+   - Verify summary prompt template is valid
+   - System will use fallback text merger if LLM fails
 
-3. **上下文管理异常**
-   - 检查系统时钟同步
-   - 验证配置参数有效性
+### Logging
 
-### 日志级别
-
-可以通过配置调整日志级别：
+Adjust log level via configuration:
 
 ```yaml
 advanced:
   log_level: "DEBUG"  # DEBUG, INFO, WARNING, ERROR
 ```
 
-## 扩展开发
+## Extension Development
 
-### 添加新功能模块
+### Custom Tool Selector
 
-1. 在相应模块中添加新类或函数
-2. 在 `agent.py` 中集成新功能
-3. 更新配置解析逻辑
-4. 添加测试用例
-
-### 自定义工具选择算法
-
-继承 `ToolSelector` 类并重写 `search()` 方法：
+Inherit `VectorToolSelector` and override methods:
 
 ```python
-class CustomToolSelector(ToolSelector):
+from src.llm_mcp_host.vector_tool_selector import VectorToolSelector, ToolInfo
+from typing import List
+
+class CustomToolSelector(VectorToolboxSelector):
     def search(self, query: str) -> List[ToolInfo]:
-        # 实现自定义选择逻辑
-        pass
+        # Implement custom selection logic
+        # Use self.tools to access all tools
+        # Use self.tool_vectors to access embeddings
+        return super().search(query)  # or custom logic
 ```
 
-### 自定义上下文策略
+### Custom Context Strategy
 
-继承 `ContextManager` 类并重写 `_cleanup()` 方法：
+Inherit `ContextManager` and override methods:
 
 ```python
+from src.llm_mcp_host.context_manager import ContextManager
+
 class CustomContextManager(ContextManager):
     def _cleanup(self):
-        # 实现自定义清理策略
-        pass
+        # Implement custom cleanup strategy
+        super()._cleanup()
 ```
 
-## 许可证
+### Adding New Features
 
-同主项目许可证。
+1. Add new classes/functions to appropriate modules
+2. Integrate in `agent.py`
+3. Update configuration parsing in `utils.py`
+4. Add tests in `tests/` directory
+5. Update this documentation
+
+## Architecture Notes
+
+### Async/Await Pattern
+
+The module extensively uses `asyncio` for asynchronous operations:
+- MCP server connections are established concurrently
+- Tool calls are asynchronous
+- LLM calls are asynchronous
+- Use `async with` for resource management
+
+### Error Handling
+
+- MCP server failures are isolated (doesn't affect other servers)
+- Embedding API failures trigger fallback mechanisms
+- LLM summarization failures use text-based fallback
+- All errors are logged with context
+
+### Memory Management
+
+- Query embedding vectors are cached (limited cache size)
+- Context messages are automatically cleaned up
+- MCP connections are properly closed on exit
+- Use `clear_cache()` and `clear()` for manual cleanup
+
+## License
+
+Same as the main Hachimi project license.
+
+## Contributing
+
+When contributing to this module:
+
+1. Follow existing code style (see AGENTS.md)
+2. Add type hints to all functions and methods
+3. Include docstrings for all public APIs
+4. Update this README for user-facing changes
+5. Add tests for new functionality
+6. Ensure backward compatibility when possible
