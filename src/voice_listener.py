@@ -9,7 +9,7 @@ import webrtcvad
 from openwakeword.model import Model
 from pydub import AudioSegment
 
-from config import config
+from config import global_config
 from logger import logger
 
 
@@ -22,7 +22,7 @@ class VoiceAssistantListener:
         audio_queue=multiprocessing.Queue(),
     ):
         # Get parameters from configuration
-        listener_config = config.voice_listener
+        listener_config = global_config.voice_listener
 
         # If model_path is not provided, use the path from configuration
         if model_path is None:

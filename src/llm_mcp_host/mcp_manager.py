@@ -51,7 +51,7 @@ class MCPServerManager:
             是否成功连接
         """
         try:
-            logger.info(f"🔌 连接MCP服务器: {server_name}")
+            logger.info(f"🔌 Connecting to MCP server: {server_name}")
             
             # 创建传输层
             read, write = await self._exit_stack.enter_async_context(
@@ -79,12 +79,12 @@ class MCPServerManager:
             )
             
             self.servers[server_name] = server_info
-            logger.info(f"✅ 服务器 {server_name} 连接成功，加载 {len(server_info.tools)} 个工具")
+            logger.info(f"✅ Server {server_name} connected successfully, loaded {len(server_info.tools)} tools")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ 连接服务器 {server_name} 失败: {e}")
+            logger.error(f"❌  Failed to connect to server {server_name}: {e}")
             return False
     
     async def get_all_tools(self) -> List[ToolInfo]:
@@ -152,11 +152,11 @@ class MCPServerManager:
         server_info = self.servers[server_name]
         
         try:
-            logger.info(f"🛠️  调用工具: {server_name}:{original_tool_name}")
+            logger.info(f"🛠️  Calling tool: {server_name}:{original_tool_name}")
             result = await server_info.session.call_tool(original_tool_name, arguments=arguments)
             return result
         except Exception as e:
-            logger.error(f"❌ 工具调用失败 {tool_name}: {e}")
+            logger.error(f"❌  Tool call failed {tool_name}: {e}")
             raise
     
     async def get_prompt(self, prompt_name: str, server_name: Optional[str] = None, **kwargs) -> Optional[str]:
@@ -181,7 +181,7 @@ class MCPServerManager:
                             result = await server_info.session.get_prompt(prompt_name, **kwargs)
                             return result.content[0].text if result.content else ""
                         except Exception as e:
-                            logger.error(f"❌ 获取提示失败 {prompt_name}: {e}")
+                            logger.error(f"❌  Failed to get prompt {prompt_name}: {e}")
                             return None
         else:
             # 搜索所有服务器
@@ -192,7 +192,7 @@ class MCPServerManager:
                             result = await server_info.session.get_prompt(prompt_name, **kwargs)
                             return result.content[0].text if result.content else ""
                         except Exception as e:
-                            logger.error(f"❌ 获取提示失败 {s_name}:{prompt_name}: {e}")
+                            logger.error(f"❌  Failed to get prompt {s_name}:{prompt_name}: {e}")
                             continue
         
         return None
@@ -226,7 +226,7 @@ class MCPServerManager:
     
     async def close(self):
         """关闭所有连接"""
-        logger.info("🔌 关闭所有MCP服务器连接")
+        logger.info("🔌  Closing all MCP server connections")
         await self._exit_stack.aclose()
         self.servers.clear()
         self.tool_mapping.clear()

@@ -1,7 +1,7 @@
 import pyaudio
 import queue
 from openai import OpenAI
-from config import config
+from config import global_config
 from logger import logger
 
 
@@ -13,7 +13,7 @@ def process_tts(tts_queue, interrupt_event):
     logger.info("[TTS] Process starting...")
 
     # Get TTS parameters from configuration
-    tts_config = config.tts
+    tts_config = global_config.tts
     api_key = tts_config["api_key"]
     base_url = tts_config["base_url"]
     model = tts_config["model"]

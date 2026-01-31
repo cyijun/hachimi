@@ -94,16 +94,16 @@ class VectorToolSelector(BaseToolSelector):
                     
                     return embedding
                 else:
-                    logger.warning(f"Embedding API返回数据格式错误: {result}")
+                    logger.warning(f"Embedding API returned invalid data format: {result}")
             else:
-                logger.error(f"Embedding API调用失败: {response.status_code}, {response.text}")
+                logger.error(f"Embedding API call failed: {response.status_code}, {response.text}")
                 
         except requests.exceptions.Timeout:
-            logger.error(f"Embedding API请求超时")
+            logger.error("Embedding API request timeout")
         except requests.exceptions.RequestException as e:
-            logger.error(f"Embedding API请求错误: {e}")
+            logger.error(f"Embedding API request error: {e}")
         except Exception as e:
-            logger.error(f"获取embedding时发生错误: {e}")
+            logger.error(f"Error getting embedding: {e}")
         
         # 如果API调用失败，返回零向量并回退到基类的搜索
         return np.zeros(self.embedding_dimensions)
@@ -119,7 +119,7 @@ class VectorToolSelector(BaseToolSelector):
         self.tool_vectors = {}
         self.tool_descriptions = {}
         
-        logger.info(f"开始构建 {len(tools)} 个工具的向量索引...")
+        logger.info(f"Starting to build vector index for {len(tools)} tools...")
         
         for tool in tools:
             # 为每个工具生成描述文本
@@ -133,7 +133,7 @@ class VectorToolSelector(BaseToolSelector):
             if embedding is not None:
                 self.tool_vectors[tool.name] = embedding
         
-        logger.info(f"工具向量索引构建完成，成功生成 {len(self.tool_vectors)} 个向量")
+        logger.info(f"Tool vector index built, successfully generated {len(self.tool_vectors)} vectors")
         
         # 调用基类的build_index以保持兼容性
         super().build_index(tools)
@@ -187,7 +187,7 @@ class VectorToolSelector(BaseToolSelector):
         
         # 如果获取embedding失败（返回零向量），回退到基类的搜索
         if np.all(query_vector == 0):
-            logger.warning("获取查询embedding失败，回退到基于词频的搜索")
+            logger.warning("Failed to get query embedding, falling back to frequency-based search")
             return super().search(query)
         
         # 计算查询与每个工具的余弦相似度
@@ -228,7 +228,7 @@ class VectorToolSelector(BaseToolSelector):
         
         # 记录调试信息
         if top_tools and similarities[0][0] > 0:
-            logger.debug(f"向量搜索结果: 查询='{query}', 最高分={similarities[0][0]:.3f}, 工具={top_tools[0].original_name}")
+            logger.debug(f"Vector search result: query='{query}', highest_score={similarities[0][0]:.3f}, tool={top_tools[0].original_name}")
         
         return top_tools
     
@@ -273,7 +273,7 @@ class VectorToolSelector(BaseToolSelector):
     def clear_cache(self):
         """清空查询向量缓存"""
         self.query_vector_cache.clear()
-        logger.info("已清空向量缓存")
+        logger.info("Vector cache cleared")
     
     def get_stats(self) -> Dict[str, Any]:
         """获取选择器统计信息"""

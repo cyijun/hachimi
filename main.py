@@ -1,12 +1,12 @@
 import multiprocessing
 import time
 
-from tts import process_tts
-from stt import process_stt
-from voice_listener import process_kws_vad
-from llm_mcp_host import process_llm_host
-from config import config
-from logger import logger
+from src.tts import process_tts
+from src.stt import process_stt
+from src.voice_listener import process_kws_vad
+from src.llm_mcp_host import process_llm_host
+from src.config import global_config
+from src.logger import logger
 
 if __name__ == "__main__":
     # 1. Set up communication pipes
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     multiprocessing.set_start_method("spawn", force=True)
 
     # Get queue size from configuration (if configured)
-    queue_size = config.process.get("queue_size", 0)  # 0 means unlimited size
+    queue_size = global_config.process.get("queue_size", 0)  # 0 means unlimited size
 
     # Create queues, use configured size if specified
     if queue_size > 0:
