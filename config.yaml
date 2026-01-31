@@ -11,6 +11,11 @@ mcp_servers:
     headers:
       Authorization: "${MCP_AUTH_TOKEN}"
 
+  wake_on_lan_server:
+    type: "stdio"
+    command: "python"
+    args: ["my_mcp_servers/wol_mcp_server/wol.py"]
+
 # LLM configuration
 llm:
   api_key: "${DEEPSEEK_API_KEY}"
@@ -19,7 +24,7 @@ llm:
   temperature: 0.7
 
 # System prompt
-system_prompt: "你是一个智能家居语音助手。你的回答必须只有一两句话且口语化，适合语音播报。"
+system_prompt: "你是一个智能家居语音助手。你的回答必须只有一两句话且口语化，适合语音播报。你可以使用以下MCP服务器提供的工具：- smart_home: 控制智能家居设备 - wake_on_lan_server: 远程唤醒电脑，我的台式机MAC地址是 04-7C-16-4E-C3-F3。"
 
 # STT (Speech-to-Text) configuration
 stt:
@@ -48,7 +53,7 @@ voice_listener:
 
 # Process configuration
 process:
-  queue_size: 100
+  queue_size: 5
 
 
 # 工具选择配置
